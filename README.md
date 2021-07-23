@@ -1,1 +1,1 @@
-# Chat-client-with-xmpp-protocol
+# Chat client with xmpp protocol
