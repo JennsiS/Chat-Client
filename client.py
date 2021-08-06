@@ -1,22 +1,18 @@
-#!/usr/bin/env python3
-
-# Slixmpp: The Slick XMPP Library
-# Copyright (C) 2010  Nathanael C. Fritz
-# This file is part of Slixmpp.
-# See the file LICENSE for copying permission.
-
 import logging
 from getpass import getpass
 from argparse import ArgumentParser
-
 import slixmpp
+from slixmpp.exceptions import IqError, IqTimeout
 
 
-class EchoBot(slixmpp.ClientXMPP):
+class RegisterBot(slixmpp.ClientXMPP):
 
     """
-    A simple Slixmpp bot that will echo messages it
-    receives, along with a short thank you message.
+    A basic bot that will attempt to register an account
+    with an XMPP server.
+    NOTE: This follows the very basic registration workflow
+          from XEP-0077. More advanced server registration
+          workflows will need to check for data forms, etc.
     """
 
     def __init__(self, jid, password):
@@ -29,19 +25,21 @@ class EchoBot(slixmpp.ClientXMPP):
         # our roster.
         self.add_event_handler("session_start", self.start)
 
-        # The message event is triggered whenever a message
-        # stanza is received. Be aware that that includes
-        # MUC messages and error messages.
-        self.add_event_handler("message", self.message)
+        # The register event provides an Iq result stanza with
+        # a registration form from the server. This may include
+        # the basic registration fields, a data form, an
+        # out-of-band URL, or any combination. For more advanced
+        # cases, you will need to examine the fields provided
+        # and respond accordingly. Slixmpp provides plugins
+        # for data forms and OOB links that will make that easier.
+        self.add_event_handler("register", self.register)
 
     async def start(self, event):
         """
         Process the session_start event.
-
         Typical actions for the session_start event are
         requesting the roster and broadcasting an initial
         presence stanza.
-
         Arguments:
             event -- An empty dictionary. The session_start
                      event does not provide any additional
@@ -50,25 +48,44 @@ class EchoBot(slixmpp.ClientXMPP):
         self.send_presence()
         await self.get_roster()
 
-    def message(self, msg):
-        """
-        Process incoming message stanzas. Be aware that this also
-        includes MUC messages and error messages. It is usually
-        a good idea to check the messages's type before processing
-        or sending replies.
+        # We're only concerned about registering, so nothing more to do here.
+        self.disconnect()
 
-        Arguments:
-            msg -- The received message stanza. See the documentation
-                   for stanza objects and the Message stanza to see
-                   how it may be used.
+    async def register(self, iq):
         """
-        if msg['type'] in ('chat', 'normal'):
-            msg.reply("Thanks for sending\n%(body)s" % msg).send()
+        Fill out and submit a registration form.
+        The form may be composed of basic registration fields, a data form,
+        an out-of-band link, or any combination thereof. Data forms and OOB
+        links can be checked for as so:
+        if iq.match('iq/register/form'):
+            # do stuff with data form
+            # iq['register']['form']['fields']
+        if iq.match('iq/register/oob'):
+            # do stuff with OOB URL
+            # iq['register']['oob']['url']
+        To get the list of basic registration fields, you can use:
+            iq['register']['fields']
+        """
+        resp = self.Iq()
+        resp['type'] = 'set'
+        resp['register']['username'] = self.boundjid.user
+        resp['register']['password'] = self.password
+
+        try:
+            await resp.send()
+            logging.info("Account created for %s!" % self.boundjid)
+        except IqError as e:
+            logging.error("Could not register account: %s" %
+                    e.iq['error']['text'])
+            self.disconnect()
+        except IqTimeout:
+            logging.error("No response from server.")
+            self.disconnect()
 
 
 if __name__ == '__main__':
     # Setup the command line arguments.
-    parser = ArgumentParser(description=EchoBot.__doc__)
+    parser = ArgumentParser()
 
     # Output verbosity options.
     parser.add_argument("-q", "--quiet", help="set logging to ERROR",
@@ -95,14 +112,18 @@ if __name__ == '__main__':
     if args.password is None:
         args.password = getpass("Password: ")
 
-    # Setup the EchoBot and register plugins. Note that while plugins may
+    # Setup the RegisterBot and register plugins. Note that while plugins may
     # have interdependencies, the order in which you register them does
     # not matter.
-    xmpp = EchoBot(args.jid, args.password)
+    xmpp = RegisterBot(args.jid, args.password)
     xmpp.register_plugin('xep_0030') # Service Discovery
-    xmpp.register_plugin('xep_0004') # Data Forms
-    xmpp.register_plugin('xep_0060') # PubSub
-    xmpp.register_plugin('xep_0199') # XMPP Ping
+    xmpp.register_plugin('xep_0004') # Data forms
+    xmpp.register_plugin('xep_0066') # Out-of-band Data
+    xmpp.register_plugin('xep_0077') # In-band Registration
+
+    # Some servers don't advertise support for inband registration, even
+    # though they allow it. If this applies to your server, use:
+    xmpp['xep_0077'].force_registration = True
 
     # Connect to the XMPP server and start processing XMPP stanzas.
     xmpp.connect()
