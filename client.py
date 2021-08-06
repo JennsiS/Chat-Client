@@ -1,92 +1,94 @@
+#!/usr/bin/env python3
+
+# Slixmpp: The Slick XMPP Library
+# Copyright (C) 2010  Nathanael C. Fritz
+# This file is part of Slixmpp.
+# See the file LICENSE for copying permission.
+
 import logging
 from getpass import getpass
 from argparse import ArgumentParser
+
 import slixmpp
 from slixmpp.exceptions import IqError, IqTimeout
+import asyncio
+#from slixmpp.xmlstream.asyncio import asyncio
 
-
-class RegisterBot(slixmpp.ClientXMPP):
-
-    """
-    A basic bot that will attempt to register an account
-    with an XMPP server.
-    NOTE: This follows the very basic registration workflow
-          from XEP-0077. More advanced server registration
-          workflows will need to check for data forms, etc.
-    """
-
-    def __init__(self, jid, password):
+class SendMsgBot(slixmpp.ClientXMPP):
+    def __init__(self, jid, password, recipient, message):
         slixmpp.ClientXMPP.__init__(self, jid, password)
-
-        # The session_start event will be triggered when
-        # the bot establishes its connection with the server
-        # and the XML streams are ready for use. We want to
-        # listen for this event so that we we can initialize
-        # our roster.
+        self.recipient = recipient
+        self.msg = message
         self.add_event_handler("session_start", self.start)
 
-        # The register event provides an Iq result stanza with
-        # a registration form from the server. This may include
-        # the basic registration fields, a data form, an
-        # out-of-band URL, or any combination. For more advanced
-        # cases, you will need to examine the fields provided
-        # and respond accordingly. Slixmpp provides plugins
-        # for data forms and OOB links that will make that easier.
-        self.add_event_handler("register", self.register)
-
     async def start(self, event):
-        """
-        Process the session_start event.
-        Typical actions for the session_start event are
-        requesting the roster and broadcasting an initial
-        presence stanza.
-        Arguments:
-            event -- An empty dictionary. The session_start
-                     event does not provide any additional
-                     data.
-        """
         self.send_presence()
         await self.get_roster()
-
-        # We're only concerned about registering, so nothing more to do here.
+        self.send_message(mto=self.recipient,
+                          mbody=self.msg,
+                          mtype='chat')
         self.disconnect()
 
-    async def register(self, iq):
-        """
-        Fill out and submit a registration form.
-        The form may be composed of basic registration fields, a data form,
-        an out-of-band link, or any combination thereof. Data forms and OOB
-        links can be checked for as so:
-        if iq.match('iq/register/form'):
-            # do stuff with data form
-            # iq['register']['form']['fields']
-        if iq.match('iq/register/oob'):
-            # do stuff with OOB URL
-            # iq['register']['oob']['url']
-        To get the list of basic registration fields, you can use:
-            iq['register']['fields']
-        """
-        resp = self.Iq()
-        resp['type'] = 'set'
-        resp['register']['username'] = self.boundjid.user
-        resp['register']['password'] = self.password
+class ShowUsersBot(slixmpp.ClientXMPP):
+    def __init__(self, jid, password):
+        slixmpp.ClientXMPP.__init__(self, jid, password)
+        self.add_event_handler("session_start", self.start)
+        self.add_event_handler("changed_status", self.wait_for_presences)
 
+        self.received = set()
+        self.presences_received = asyncio.Event()
+
+    async def start(self, event):
         try:
-            await resp.send()
-            logging.info("Account created for %s!" % self.boundjid)
-        except IqError as e:
-            logging.error("Could not register account: %s" %
-                    e.iq['error']['text'])
-            self.disconnect()
+            await self.get_roster()
+        except IqError as err:
+            print('Error: %s' % err.iq['error']['condition'])
         except IqTimeout:
-            logging.error("No response from server.")
-            self.disconnect()
+            print('Error: Request timed out')
+        self.send_presence()
+
+
+        print('Waiting for presence updates...\n')
+        await asyncio.sleep(10)
+
+        print('Roster for %s' % self.boundjid.bare)
+        groups = self.client_roster.groups()
+        for group in groups:
+            print('\n%s' % group)
+            print('-' * 72)
+            for jid in groups[group]:
+                sub = self.client_roster[jid]['subscription']
+                name = self.client_roster[jid]['name']
+                if self.client_roster[jid]['name']:
+                    print(' %s (%s) [%s]' % (name, jid, sub))
+                else:
+                    print(' %s [%s]' % (jid, sub))
+
+                connections = self.client_roster.presence(jid)
+                for res, pres in connections.items():
+                    show = 'available'
+                    if pres['show']:
+                        show = pres['show']
+                    print('   - %s (%s)' % (res, show))
+                    if pres['status']:
+                        print('       %s' % pres['status'])
+
+        self.disconnect()
+
+    def wait_for_presences(self, pres):
+        """
+        Track how many roster entries have received presence updates.
+        """
+        self.received.add(pres['from'].bare)
+        if len(self.received) >= len(self.client_roster.keys()):
+            self.presences_received.set()
+        else:
+            self.presences_received.clear()
+
 
 
 if __name__ == '__main__':
-    # Setup the command line arguments.
-    parser = ArgumentParser()
-
+    parser = ArgumentParser(description=SendMsgBot.__doc__)
     # Output verbosity options.
     parser.add_argument("-q", "--quiet", help="set logging to ERROR",
                         action="store_const", dest="loglevel",
@@ -112,19 +114,55 @@ if __name__ == '__main__':
     if args.password is None:
         args.password = getpass("Password: ")
 
-    # Setup the RegisterBot and register plugins. Note that while plugins may
-    # have interdependencies, the order in which you register them does
-    # not matter.
-    xmpp = RegisterBot(args.jid, args.password)
-    xmpp.register_plugin('xep_0030') # Service Discovery
-    xmpp.register_plugin('xep_0004') # Data forms
-    xmpp.register_plugin('xep_0066') # Out-of-band Data
-    xmpp.register_plugin('xep_0077') # In-band Registration
+    loop=True
 
-    # Some servers don't advertise support for inband registration, even
-    # though they allow it. If this applies to your server, use:
-    xmpp['xep_0077'].force_registration = True
-
-    # Connect to the XMPP server and start processing XMPP stanzas.
-    xmpp.connect()
-    xmpp.process()
+    while loop:
+        print('MENU')
+        print('Select the option you want to use: ')
+        print(' 1.Show all users')
+        print(' 2.Add contact')
+        print(' 3.Show user')
+        print(' 4.DM')
+        print(' 5.Group Chat')
+        print(' 6.Define status')
+        print(' 7.Send/recieve notifications')
+        print(' 8.Send/receive files')
+        print(' 9.Logout')
+        print(' 10.Delete account')
+        option=int(input("\n"))
+        if(option==1):
+            xmpp = ShowUsersBot(args.jid, args.password)
+            xmpp.connect()
+            xmpp.process(forever=False)
+            loop=False
+        elif(option==2):
+            pass
+        elif(option==3):
+            pass
+        elif(option==4):
+            user=input('Enter the username ')
+            message=input('msg: ')
+            xmpp = SendMsgBot(args.jid, args.password, user, message)
+            xmpp.register_plugin('xep_0030') # Service Discovery
+            xmpp.register_plugin('xep_0199') # XMPP Ping
+            xmpp.register_plugin('xep_0004') ### Data Forms
+            xmpp.register_plugin('xep_0066') ### Band Data
+            xmpp.register_plugin('xep_0077') ### Band Registration
+            # Connect to the XMPP server and start processing XMPP stanzas.
+            xmpp.connect()
+            xmpp.process(forever=False)
+            loop=False
+        elif(option==5):
+            pass
+        elif(option==6):
+            pass
+        elif(option==7):
+            pass
+        elif(option==8):
+            pass
+        elif(option==9):
+            pass
+        elif(option==10):
+            pass
+        else:
+            print('Opcion incorrecta')
