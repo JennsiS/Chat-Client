@@ -35,6 +35,9 @@ import slixmpp
 from slixmpp.exceptions import IqError, IqTimeout
 import asyncio
 
+
+
+
 class RegisterBot(slixmpp.ClientXMPP):
     def __init__(self, jid, password):
         slixmpp.ClientXMPP.__init__(self, jid, password)
@@ -62,6 +65,36 @@ class RegisterBot(slixmpp.ClientXMPP):
             print('No response from server')
             self.disconnect()
 
+class DeleteAccountBot(slixmpp.ClientXMPP):
+    def __init__(self, jid,password):
+        slixmpp.ClientXMPP.__init__(self,jid,password)
+        self.add_event_handler("session_start", self.start)
+        self.add_event_handler("unregister", self.unregister)
+
+    async def start(self,event):
+        self.send_presence()
+        await self.get_roster()
+        await self.unregister()
+        self.disconnect()
+
+    async def unregister(self,iq):
+        resp = self.Iq()
+        resp['type'] = 'set'
+        resp['from'] = self.boundjid.user
+        resp['password'] = self.password
+        resp['register']['remove'] = 'remove'
+
+        try:
+            await resp.send()
+            print("Success! Acount Deleted"+str(self.boundjid))
+        except IqError as e:
+            print("IQ Error:Account Not Deleted")
+            self.disconnect()
+        except IqTimeout:
+            print("Timeout")
+            self.disconnect() 
+
+
 
 class MsgBot(slixmpp.ClientXMPP):
     def __init__(self, jid, password, recipient, message):
@@ -88,10 +121,7 @@ class MsgBot(slixmpp.ClientXMPP):
             self.send_message(mto=self.recipient,
                               mbody=message)
 
-class ClientBot(slixmpp.ClientXMPP):
-    def __init__(self, jid, password):
-        slixmpp.ClientXMPP.__init__(self, jid, password)
-        self.add_event_handler("session_start", self.start)
+
         
 
 class ShowUsersBot(slixmpp.ClientXMPP):
@@ -204,7 +234,89 @@ class UserInfoBot(slixmpp.ClientXMPP):
             self.presences_received.set()
         else:
             self.presences_received.clear()
+
+class MultiChatBot(slixmpp.ClientXMPP):
+    def __init__(self, jid, password, room, nick):
+        slixmpp.ClientXMPP.__init__(self, jid, password)
+        self.room = room
+        self.nick = nick
+        self.add_event_handler("session_start", self.start)
+        self.add_event_handler("groupchat_message", self.muc_message)
+        self.add_event_handler("muc::%s::got_online" % self.room,
+                               self.muc_online)
+
+    async def start(self, event):
+        await self.get_roster()
+        self.send_presence()
+        self.plugin['xep_0045'].join_muc(self.room,
+                                        self.nick)
     
+    def muc_message(self, msg):
+        if msg['mucnick'] != self.nick and self.nick in msg['body']:
+            self.send_message(mto=msg['from'].bare,
+                            mbody="I heard that, %s." % msg['mucnick'],
+                            mtype='groupchat')
+    
+
+class Client(slixmpp.ClientXMPP):
+    slixmpp.ClientXMPP.__init__(self, jid, password)
+    self.add_event_handler("session_start", self.start)
+
+
+class AddUser(slixmpp.ClientXMPP):
+        def __init__(self, jid,password):
+        slixmpp.ClientXMPP.__init__(self,jid,password)
+        self.presences_received = asyncio.Event()
+        self.recieved=set()        
+        self.add_event_handler("session_start", self.start)
+        self.add_event_handler("changed_status",self.wait_for_presences)
+
+    async def start(self,event):
+        
+        try:
+            await self.get_roster()
+        except IqError as e:
+            print("IQ Error")
+            self.disconnect()
+        except IqTimeout:
+            print("Timeout")
+            self.disconnect()
+        self.send_presence()
+
+        print('Roster  for %s'% self.boundjid.bare)
+        groups = self.client_roster.groups()
+        for group in groups:
+            for jid in groups[group]:
+                sub = self.client_roster[jid]['subscription']
+                name = self.client_roster[jid]['name']
+                if self.client_roster[jid]['name']:
+                    print(' %s (%s} [%s]'% (name,jid,sub))
+                else:
+                    print(' %s (%s} [%s]'% (jid,sub))
+                connections = self.client_roster.presence(jid)
+                for res, pres in connections.items():
+                    show = 'available'
+                    if pres['show']:
+                        show = pres['show']
+                    print('   - %s (%s)' % (res, show))
+                    if pres['status']:
+                        print('       %s' % pres['status'])
+        self.disconnect()
+
+
+    def wait_for_presences(self,pres):
+        self.received.add(pres['from'].bare)
+        if len(self.recieved)>=len(self.client_roster.keys()):
+            self.presences_received.set()
+        else:
+            self.presences_received.clear()
+    
+    def send_request(self,to):
+        try:
+            self.send_presence_subscription(to, self.local_jid, 'subscribe')
+        except:
+            print("Couldn't add Friend")
+
 
 
 
@@ -299,7 +411,14 @@ if __name__ == '__main__':
                 xmpp.process(forever=False)
                 
             elif(option==5):
-                pass
+                room=input('Enter the room you want to create ')
+                nick=input('Select your nickname: ')
+                xmpp = MultiChatBot(args.jid,args.password,room,nick)
+                xmpp.register_plugin('xep_0030') # Service Discovery
+                xmpp.register_plugin('xep_0045') # Multi-User Chat
+                xmpp.register_plugin('xep_0199') # XMPP Ping
+                xmpp.connect()
+                xmpp.process()
             elif(option==6):
                 pass
             elif(option==7):
@@ -309,6 +428,11 @@ if __name__ == '__main__':
             elif(option==9):
                 pass
             elif(option==10):
-                pass
+                xmpp=DeleteAccountBot(args.jid,args.password)
+                xmpp.register_plugin('xep_0030') # Service Discovery
+                xmpp.register_plugin('xep_0004') # Data forms
+                xmpp.register_plugin('xep_0066') # Out-of-band Data
+                xmpp.register_plugin('xep_0077') # In-band Registration
+                loop=False
             else:
                 print('Opcion incorrecta')
