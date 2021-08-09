@@ -18,7 +18,7 @@ Implemented Functions:
 Pending Functions:
     - Register account (?)
     - Log out
-    - Add Contact
+    - Add contact
     - Group chat 
     - Notifications
 Uncompleted functions:
@@ -35,6 +35,147 @@ from argparse import ArgumentParser
 import slixmpp
 from slixmpp.exceptions import IqError, IqTimeout
 import asyncio
+
+class Client(slixmpp.ClientXMPP):
+    def __init__(self, jid, password):
+        slixmpp.ClientXMPP.__init__(self, jid, password)
+        self.add_event_handler("session_start", self.start)
+        self.add_event_handler("changed_status", self.wait_for_presences)
+
+        self.received = set()
+        self.presences_received = asyncio.Event()
+
+        #plugins
+        self.register_plugin('xep_0004') # Data forms
+        self.register_plugin('xep_0030') # Service Disc
+        self.register_plugin('xep_0077') # In-band Register
+        self.register_plugin('xep_0066') # Ping
+        self.register_plugin('xep_0045') # MUC
+
+    async def start(self, event):
+        try:
+            await self.get_roster()
+        except IqError as err:
+            print('Error: %s' % err.iq['error']['condition'])
+        except IqTimeout:
+            print('Error: Request timed out')
+        self.send_presence()
+        
+    
+    def Login(self):
+        if self.connect() :
+            self.process()
+            print("Logged in! \n")
+        else:
+            print("Error: Couldn't log in.")
+    
+    async def ShowUsers(self):
+        await asyncio.sleep(10)
+        print('Roster for %s' % self.boundjid.bare)
+        groups = self.client_roster.groups()
+        for group in groups:
+            print('\n%s' % group)
+            print('-' * 72)
+            for jid in groups[group]:
+                sub = self.client_roster[jid]['subscription']
+                name = self.client_roster[jid]['name']
+                if self.client_roster[jid]['name']:
+                    print(' %s (%s) [%s]' % (name, jid, sub))
+                else:
+                    print(' %s [%s]' % (jid, sub))
+
+                connections = self.client_roster.presence(jid)
+                for res, pres in connections.items():
+                    show = 'available'
+                    if pres['show']:
+                        show = pres['show']
+                    print('   - %s (%s)' % (res, show))
+                    if pres['status']:
+                        print('       %s' % pres['status'])
+
+    def wait_for_presences(self, pres):
+        """
+        Track how many roster entries have received presence updates.
+        """
+        self.received.add(pres['from'].bare)
+        if len(self.received) >= len(self.client_roster.keys()):
+            self.presences_received.set()
+        else:
+            self.presences_received.clear()
+
+    
+    def ChangePresence(self,option,message):
+        self.send_presence(pshow=option,pstatus=message)
+    
+    def DeleteAccount(self):
+        request=self.Iq()
+        request['type'] = 'set'
+        request['from'] = self.boundjid.user
+        request['password'] = self.password
+        request['register']['remove'] = 'remove'
+        try:
+            request.send()
+            print("Success! Acount Deleted"+str(self.boundjid))
+        except IqError as e:
+            print("IQ Error:Account Not Deleted")
+            self.disconnect()
+        except IqTimeout:
+            print("Timeout")
+            self.disconnect()
+    
+    def Logout(self):
+        self.disconnect()
+        print('Bye! See you soon :) ')
+    
+    def Message(self, recipient, msg):
+        self.send_message(mto=recipient,
+                          mbody=msg,
+                          mtype='chat')
+        if msg['type'] in ('chat'):
+            recipient = msg['from']
+            body = msg['body']
+            print(str(recipient) +  ": " + str(body))
+            message = input("You: ")
+            self.send_message(mto=recipient,
+                              mbody=message, mtype='chat')
+    
+    def ShowUserInfo(self):
+        jid_user=input('User jid: ')
+        print('Waiting for presence updates...\n')
+        #await asyncio.sleep(10)
+
+        groups = self.client_roster.groups()
+        for group in groups:
+            print('\n%s' % group)
+            print('-' * 72)
+            for jid in groups[group]:
+                sub = self.client_roster[jid]['subscription']
+                name = self.client_roster[jid]['name']
+                if self.client_roster[jid]['name'] and jid==jid_user:
+                    print(' %s (%s) [%s]' % (name, jid, sub))
+                    connections = self.client_roster.presence(jid_user)
+                    for res, pres in connections.items():
+                        show = 'available'
+                        if pres['show']:
+                            show = pres['show']
+                        print('   - %s (%s)' % (res, show))
+                        if pres['status']:
+                            print('       %s' % pres['status'])
+                elif self.client_roster[jid]['name']==False and jid==jid_user:
+                    print(' %s [%s]' % (jid, sub))
+                    connections = self.client_roster.presence(jid_user)
+                    for res, pres in connections.items():
+                        show = 'available'
+                        if pres['show']:
+                            show = pres['show']
+                        print('   - %s (%s)' % (res, show))
+                        if pres['status']:
+                            print('       %s' % pres['status'])
+    
+    def ChatGroup(self, room, nick):
+        self.send_message(mto=room, mbody=msg, mtype='groupchat',mnick=nick)
+    def AddUser(self):
+        pass
 
 
 class SendFile(slixmpp.ClientXMPP):
@@ -290,20 +431,7 @@ class MultiChatBot(slixmpp.ClientXMPP):
                               mtype='groupchat')
     
 
-class Client(slixmpp.ClientXMPP):
-    def __init__(self, jid, password):
-        slixmpp.ClientXMPP.__init__(self, jid, password)
-        self.add_event_handler("session_start", self.start)
 
-    async def start(self, event):
-        self.send_presence()
-        await self.get_roster()
-        self.disconnect()
-    
-    def ChangePresence(self,option,message):
-        self.send_presence(pshow=option,pstatus=message)
-
-    
 
 
 class AddUser(slixmpp.ClientXMPP):
@@ -402,31 +530,40 @@ if __name__ == '__main__':
             print(' 10.Delete account')
             option=int(input("\n"))
             if(option==1):
+                
                 xmpp = ShowUsersBot(jid,password)
                 xmpp.connect()
                 xmpp.process(forever=False)
                 loop=False
             elif(option==2):
+ 
                 xmpp=AddUser(jid,password)
                 xmpp.connect()
                 xmpp.process()
+
             elif(option==3):
+           
                 xmpp = UserInfoBot(jid, password)
                 xmpp.connect()
                 xmpp.process(forever=False)
                 loop=False
+        
             elif(option==4):
                 user=input('Enter the username ')
                 message=input('msg: ')
+      
                 xmpp = MsgBot(args.jid, args.password, user, message)
+            
                 xmpp.register_plugin('xep_0030') # Service Discovery
                 xmpp.register_plugin('xep_0199') # XMPP Ping
                 xmpp.register_plugin('xep_0004') ### Data Forms
                 xmpp.register_plugin('xep_0066') ### Band Data
                 xmpp.register_plugin('xep_0077') ### Band Registration
-                # Connect to the XMPP server and start processing XMPP stanzas.
                 xmpp.connect()
-                xmpp.process(forever=False)
+                xmpp.process()
+                # Connect to the XMPP server and start processing XMPP stanzas.
+                #xmpp.connect()
+                #xmpp.process(forever=False)
                 
             elif(option==5):
                 room=input('Enter the room you want to create ')
@@ -440,10 +577,10 @@ if __name__ == '__main__':
             elif(option==6):
                 presence=input('Select presence status (chat,away,xa,dnd): ')
                 message=input('Select message presence: ')
+
                 xmpp=Client(args.jid,args.password)
                 xmpp.ChangePresence(presence,message)
-                xmpp.connect()
-                xmpp.process()
+           
             elif(option==7):
                 pass
             elif(option==8):
@@ -459,7 +596,8 @@ if __name__ == '__main__':
                 xmpp.connect()
                 xmpp.process(forever=False)
             elif(option==9):
-                xmpp=Logout(args.jid,args.password)
+                #xmpp=Logout(args.jid,args.password)
+                xmpp.Logout()
                 xmpp.connect()
                 xmpp.process()
             elif(option==10):
@@ -486,9 +624,8 @@ if __name__ == '__main__':
                 args.jid = input("Username: ")
             if args.password is None:
                 args.password = getpass("Password: ")
-            xmpp=Client(args.jid,args.password)
-            xmpp.connect()
-            xmpp.process(forever=False)
+            #xmpp=Client(args.jid,args.password)
+            #xmpp.connect()
             menu(args.jid,args.password)
         elif(opt==2):
             if args.jid is None: 
@@ -503,79 +640,3 @@ if __name__ == '__main__':
             else:
                 print("Couldn't connect to server!")
         
-    '''
-    def menu (jid,password):
-        loop=True
-
-        while loop:
-            print('MENU')
-            print('Select the option you want to use: ')
-            print(' 1.Show all users')
-            print(' 2.Add contact')
-            print(' 3.Show user')
-            print(' 4.DM')
-            print(' 5.Group Chat')
-            print(' 6.Define status')
-            print(' 7.Send/recieve notifications')
-            print(' 8.Send/receive files')
-            print(' 9.Logout')
-            print(' 10.Delete account')
-            option=int(input("\n"))
-            if(option==1):
-                xmpp = ShowUsersBot(jid,password)
-                xmpp.connect()
-                xmpp.process(forever=False)
-                loop=False
-            elif(option==2):
-                xmpp=AddUser(jid,password)
-                xmpp.connect()
-                xmpp.process()
-            elif(option==3):
-                xmpp = UserInfoBot(jid, password)
-                xmpp.connect()
-                xmpp.process(forever=False)
-                loop=False
-            elif(option==4):
-                user=input('Enter the username ')
-                message=input('msg: ')
-                xmpp = MsgBot(args.jid, args.password, user, message)
-                xmpp.register_plugin('xep_0030') # Service Discovery
-                xmpp.register_plugin('xep_0199') # XMPP Ping
-                xmpp.register_plugin('xep_0004') ### Data Forms
-                xmpp.register_plugin('xep_0066') ### Band Data
-                xmpp.register_plugin('xep_0077') ### Band Registration
-                # Connect to the XMPP server and start processing XMPP stanzas.
-                xmpp.connect()
-                xmpp.process(forever=False)
-                
-            elif(option==5):
-                room=input('Enter the room you want to create ')
-                nick=input('Select your nickname: ')
-                xmpp = MultiChatBot(args.jid,args.password,room,nick)
-                xmpp.register_plugin('xep_0030') # Service Discovery
-                xmpp.register_plugin('xep_0045') # Multi-User Chat
-                xmpp.register_plugin('xep_0199') # XMPP Ping
-                xmpp.connect()
-                xmpp.process()
-            elif(option==6):
-                pass
-            elif(option==7):
-                pass
-            elif(option==8):
-                pass
-            elif(option==9):
-                xmpp=Logout(args.jid,args.password)
-                xmpp.connect()
-                xmpp.process()
-            elif(option==10):
-                xmpp=DeleteAccountBot(args.jid,args.password)
-                xmpp.register_plugin('xep_0030') # Service Discovery
-                xmpp.register_plugin('xep_0004') # Data forms
-                xmpp.register_plugin('xep_0066') # Out-of-band Data
-                xmpp.register_plugin('xep_0077') # In-band Registration
-                xmpp.connect()
-                xmpp.process()
-                loop=False
-            else:
-                print('Opcion incorrecta')
-    '''
