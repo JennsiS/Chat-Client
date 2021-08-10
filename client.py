@@ -15,16 +15,16 @@ Implemented Functions:
     - Send and receive messages in chat
     - Show one user info
     - Delete account
+    - Add contact
 Pending Functions:
     - Register account (?)
-    - Log out
-    - Add contact
     - Group chat 
     - Notifications
 Uncompleted functions:
     - how to make while logging stays online
     - Define Prescense
     - Files
+    - Log out (? while is still online)
      
 '''
 
@@ -58,6 +58,7 @@ class Client(slixmpp.ClientXMPP):
         except IqError as err:
             print('Error: %s' % err.iq['error']['condition'])
         except IqTimeout:
+
             print('Error: Request timed out')
         self.send_presence()
         
@@ -106,6 +107,10 @@ class Client(slixmpp.ClientXMPP):
     
     def ChangePresence(self,option,message):
         self.send_presence(pshow=option,pstatus=message)
+
+    def AddUser(self,jiduser):
+        self.send_presence_subscription(pto=jiduser)
+        print("User added! " + str(jiduser))
     
     def DeleteAccount(self):
         request=self.Iq()
@@ -172,45 +177,25 @@ class Client(slixmpp.ClientXMPP):
                         if pres['status']:
                             print('       %s' % pres['status'])
     
-    def ChatGroup(self, room, nick):
-        self.send_message(mto=room, mbody=msg, mtype='groupchat',mnick=nick)
-    def AddUser(self):
-        pass
+    def ChatGroup(self, room, nick,msg):
+        self.send_message(mto=room,mbody=msg,mtype='groupchat',mnick=nick)
+    
 
 
-class SendFile(slixmpp.ClientXMPP):
-    def __init__(self, jid, password, recipient, file):
-        slixmpp.ClientXMPP.__init__(self, jid, password)
-        self.recipient = recipient
-        self.file =file 
-        self.add_event_handler("session_start", self.start)
-        self.add_event_handler("message", self.sendFile)
 
-    async def start(self, event):
-        self.send_presence()
-        await self.get_roster()
-
-    def sendFile(self, recipient, file):
-        with open(file, 'rb') as img:
-            file_ = base64.b64encode(img.read()).decode('utf-8')
-        self.send_message(mto=recipient, mbody=file_, msubject='send_file', mtype='chat')
 
 
 class RegisterBot(slixmpp.ClientXMPP):
     def __init__(self, jid, password):
         slixmpp.ClientXMPP.__init__(self, jid, password)
-        #self.user = jid
         self.add_event_handler("session_start", self.start)
         self.add_event_handler("register", self.register)
-        #self.register_plugin('xep_0030') # Service Discovery
-        #self.register_plugin('xep_0004') # Data forms
-        #self.register_plugin('xep_0066') # Out-of-band Data
-        self.register_plugin('xep_0077') # In-band Registration
+        
 
     def start(self, event):
         self.send_presence()
         self.get_roster()
-        #self.disconnect()
+        self.disconnect()
 
     def register(self, iq):
         resp = self.Iq()
@@ -408,29 +393,71 @@ class UserInfoBot(slixmpp.ClientXMPP):
             self.presences_received.clear()
 
 class MultiChatBot(slixmpp.ClientXMPP):
-    def __init__(self, jid, password, room, nick):
+    def __init__(self, jid, password, room, message):
         slixmpp.ClientXMPP.__init__(self, jid, password)
         self.room = room
-        self.nick = nick
+        self.msg = message
         self.add_event_handler("session_start", self.start)
-        self.add_event_handler("muc::%s::got_online" % self.room,
-                               self.muc_online)
-        #self.add_event_handler("groupchat_message", self.muc_message)
+        self.add_event_handler("message", self.message)
 
     async def start(self, event):
-        await self.get_roster()
         self.send_presence()
-        self.plugin['xep_0045'].join_muc(self.room,
-                                        self.nick)
-    
-    def muc_online(self, presence):
-        if presence['muc']['nick'] != self.nick:
-            self.send_message(mto=presence['from'].bare,
-                              mbody="Hello, %s %s" % (presence['muc']['role'],
-                                                      presence['muc']['nick']),
-                              mtype='groupchat')
-    
+        await self.get_roster()
+        self.send_message(mto=self.room,
+                          mbody=self.msg,
+                          mtype='groupchat')
 
+    async def message(self, msg):
+        if msg['type'] in ('groupchat'):
+            room = msg['from']
+            body = msg['body']
+            print(str(room) +  ": " + str(body))
+            message = input("You: ")
+            self.send_message(mto=self.room,
+                              mbody=message, mtype='groupchat')
+    
+class Sendfile(slixmpp.ClientXMPP):
+    """
+        This class will be helpful to send files. xep_0065 plugin is
+        needed
+        Atributes:
+            jid: string expected with the jid as xmpp format
+                 example string: "test@alumchat.xyz"
+            password: string expected with the password for
+                      authentication
+            receiver: string expected with the jid of receiver
+            filename: path of the user
+        Methods:
+            Start: This method is helpful to delete the user        
+    """
+    def __init__(self, jid, password, receiver, filename):
+        slixmpp.ClientXMPP.__init__(self, jid, password)
+
+        self.receiver = receiver
+
+        self.file = open(filename, 'rb')
+        self.add_event_handler("session_start", self.start)
+
+    async def start(self, event):
+        try:
+            #Set the receiver
+            proxy = await self['xep_0065'].handshake(self.receiver)
+            while True:
+                data = self.file.read(1048576)
+                if not data:
+                    break
+                await proxy.write(data)
+
+            proxy.transport.write_eof()
+        except (IqError, IqTimeout) as e:
+            #Something went wrong
+            print('File transfer errored', e)
+        else:
+            #File transfer
+            print('File transfer finished')
+        finally:
+            self.file.close()
+            self.disconnect()
 
 
 
@@ -530,30 +557,25 @@ if __name__ == '__main__':
             print(' 10.Delete account')
             option=int(input("\n"))
             if(option==1):
-                
                 xmpp = ShowUsersBot(jid,password)
                 xmpp.connect()
                 xmpp.process(forever=False)
                 loop=False
             elif(option==2):
- 
-                xmpp=AddUser(jid,password)
+                user=input('Enter the username you want to add: ')
+                xmpp=Client(jid,password)
+                xmpp.AddUser(user)
                 xmpp.connect()
                 xmpp.process()
-
             elif(option==3):
-           
                 xmpp = UserInfoBot(jid, password)
                 xmpp.connect()
                 xmpp.process(forever=False)
                 loop=False
-        
             elif(option==4):
                 user=input('Enter the username ')
                 message=input('msg: ')
-      
                 xmpp = MsgBot(args.jid, args.password, user, message)
-            
                 xmpp.register_plugin('xep_0030') # Service Discovery
                 xmpp.register_plugin('xep_0199') # XMPP Ping
                 xmpp.register_plugin('xep_0004') ### Data Forms
@@ -561,23 +583,22 @@ if __name__ == '__main__':
                 xmpp.register_plugin('xep_0077') ### Band Registration
                 xmpp.connect()
                 xmpp.process()
-                # Connect to the XMPP server and start processing XMPP stanzas.
-                #xmpp.connect()
-                #xmpp.process(forever=False)
-                
             elif(option==5):
-                room=input('Enter the room you want to create ')
-                nick=input('Select your nickname: ')
-                xmpp = MultiChatBot(args.jid,args.password,room,nick)
+                room=input('Enter the username ')
+                room=room+'@conference.alumchat.xyz'
+                message=input('msg: ')
+                xmpp = MultiChatBot(jid,password,room,message)
                 xmpp.register_plugin('xep_0030') # Service Discovery
-                xmpp.register_plugin('xep_0045') # Multi-User Chat
                 xmpp.register_plugin('xep_0199') # XMPP Ping
+                xmpp.register_plugin('xep_0004') ### Data Forms
+                xmpp.register_plugin('xep_0066') ### Band Data
+                xmpp.register_plugin('xep_0077') ### Band Registration
+                xmpp.register_plugin('xep_0045') # MUC
                 xmpp.connect()
                 xmpp.process()
             elif(option==6):
                 presence=input('Select presence status (chat,away,xa,dnd): ')
                 message=input('Select message presence: ')
-
                 xmpp=Client(args.jid,args.password)
                 xmpp.ChangePresence(presence,message)
            
@@ -586,11 +607,13 @@ if __name__ == '__main__':
             elif(option==8):
                 user=input('Enter the username ')
                 file=input('Insert file name: ')
-                xmpp=SendFile(args.jid,args.password,user,file)
+                xmpp=Sendfile(jid,password,user,file)
                 xmpp.register_plugin('xep_0030') # Service Discovery
                 xmpp.register_plugin('xep_0199') # XMPP Ping
                 xmpp.register_plugin('xep_0004') ### Data Forms
                 xmpp.register_plugin('xep_0066') ### Band Data
+                xmpp.register_plugin('xep_0030') # Service Discovery
+                xmpp.register_plugin('xep_0065') # SOCKS5 Bytestreams
                 xmpp.register_plugin('xep_0077') ### Band Registration
                 # Connect to the XMPP server and start processing XMPP stanzas.
                 xmpp.connect()
@@ -633,10 +656,12 @@ if __name__ == '__main__':
             if args.password is None:
                 args.password = getpass("Password: ") 
             xmpp = RegisterBot(args.jid, args.password)
+            xmpp.register_plugin('xep_0030') # Service Discovery
+            xmpp.register_plugin('xep_0004') # Data forms
+            xmpp.register_plugin('xep_0066') # Out-of-band Data
+            xmpp.register_plugin('xep_0077') # In-band Registration
             xmpp['xep_0077'].force_registration = True
-            if xmpp.connect():
-                xmpp.process(block=True)
-                print("Done")
-            else:
-                print("Couldn't connect to server!")
+            xmpp.connect()
+            xmpp.process()
+
         
