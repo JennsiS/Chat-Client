@@ -1,32 +1,12 @@
 # Universidad del Valle de Guatemala
 # Redes 
 # Chat client project
-# Author: Jennifer Sandoval
+# name: client.py
+# Description: this program is a client that allows communication with the xmpp server, specifically the domain @ alumchat.xyz
+# Author: Jennifer Daniela Sandoval
 
-# Slixmpp: The Slick XMPP Library
-# Copyright (C) 2010  Nathanael C. Fritz
-# This file is part of Slixmpp.
-# See the file LICENSE for copying permission.
-
-'''
-Implemented Functions:
-    - Show all users
-    - Log in
-    - Send and receive messages in chat
-    - Show one user info
-    - Delete account
-    - Add contact
-    - Log out
-    - Define Presence
-    - Group chat
-    - Register account ~
-    - Create group 
-Pending Functions:
-    - Notifications (typing)
-Uncompleted functions:
-    - Files
-
-'''
+# Note: Most of the implemented classes are based on the examples provided by the repository belonging to the slixmpp library.
+# References: https://github.com/poezio/slixmpp/tree/master/examples
 
 import logging
 import sys
@@ -38,9 +18,8 @@ from slixmpp.exceptions import IqError, IqTimeout
 from slixmpp.xmlstream.stanzabase import ET, ElementBase 
 import asyncio
 
-###################################################################################################################
+########################################################################################################################################
 
-###################################################################################################################
 
 #Small fix that allows the program to run on windows operating systems due to an error with the asyncio library
 if sys.platform == 'win32' and sys.version_info >= (3, 8):
@@ -119,7 +98,6 @@ Parameters:
     - JID
     - Password
 '''
-
 class Logout(slixmpp.ClientXMPP):
     def __init__(self, jid,password):
         slixmpp.ClientXMPP.__init__(self,jid,password)
@@ -128,7 +106,8 @@ class Logout(slixmpp.ClientXMPP):
     async def start(self,event):
         self.send_presence()
         await self.get_roster()
-        self.disconnect()
+        print('Bye! See you soon :) ')
+        self.disconnect(wait=10)
 
 '''
 Class that allows a user to log in
@@ -136,17 +115,24 @@ Parameters:
     - JID
     - Password
 '''
-
 class Login(slixmpp.ClientXMPP):
     def __init__(self, jid,password):
         slixmpp.ClientXMPP.__init__(self,jid,password)
         self.add_event_handler("session_start", self.start)
 
     async def start(self,event):
-        self.send_presence()
-        await self.get_roster()
-        print('Hello! You are in')
-        self.disconnect()
+        try:
+            self.send_presence()
+            await self.get_roster()
+            print('Hello! You are in :)')
+            self.disconnect()
+        except IqError as err:
+            print('Error: %s' % err.iq['error']['condition'])
+            self.disconnect()
+        except IqTimeout:
+            print('Error: Request timed out')
+            self.send_presence()
+            self.disconnect()
 
 '''
 Class that allows a user to change their presence message
@@ -167,11 +153,19 @@ class ChangePresence(slixmpp.ClientXMPP):
     async def start(self,event):
         #Changing presence message 
         self.send_presence(pshow=self.option,pstatus=self.message)
-        await asyncio.sleep(10)
+        await asyncio.sleep(30)
         self.get_roster()
         self.disconnect()
 
 
+'''
+Class that allows sending and receiving direct messages with a user
+Parameters:
+    - JID
+    - Password
+    - Recipient: jid of the user who receives the message
+    - Message: body of the message you want to send
+'''
 
 class MsgBot(slixmpp.ClientXMPP):
     def __init__(self, jid, password, recipient, message):
@@ -216,7 +210,12 @@ class MsgBot(slixmpp.ClientXMPP):
             self.send_message(mto=self.recipient,
                               mbody=message, mtype='chat')
 
-
+'''
+Class that shows all users in my roster, their status and presence message
+Parameters:
+    - JID
+    - Password
+'''
 class ShowUsersBot(slixmpp.ClientXMPP):
     def __init__(self, jid, password):
         slixmpp.ClientXMPP.__init__(self, jid, password)
@@ -270,6 +269,12 @@ class ShowUsersBot(slixmpp.ClientXMPP):
         else:
             self.presences_received.clear()
 
+'''
+Class that shows the information of a specific user in my roster
+Parameters:
+    - JID
+    - Password
+'''
 class UserInfoBot(slixmpp.ClientXMPP):
     def __init__(self, jid, password):
         slixmpp.ClientXMPP.__init__(self, jid, password)
@@ -329,10 +334,17 @@ class UserInfoBot(slixmpp.ClientXMPP):
         else:
             self.presences_received.clear()
 
+'''
+Class that allow group chat
+Parameters:
+    - JID
+    - Password
+    - room: room name including @conference.alumchat.xyz
+    - nick: the nickname assigned when entering the room
+'''
 class MultiChatBot(slixmpp.ClientXMPP):
     def __init__(self, jid, password, room, nick):
         slixmpp.ClientXMPP.__init__(self, jid, password)
-
         self.room = room
         self.nick = nick
         self.add_event_handler("session_start", self.start)
@@ -354,7 +366,15 @@ class MultiChatBot(slixmpp.ClientXMPP):
             print(str(recipient) +  ": " + str(body))
             message = input("You: ")
             self.send_message(mto=self.room,mbody=message, mtype='chat')
-    
+
+'''
+Class that allow to send files
+Parameters:
+    - JID
+    - Password
+    - receiver: jid of the user you want to send a file
+    - filename: complete path of the file
+'''
 class Sendfile(slixmpp.ClientXMPP):
     def __init__(self, jid, password, receiver, filename):
         slixmpp.ClientXMPP.__init__(self, jid, password)
@@ -374,7 +394,13 @@ class Sendfile(slixmpp.ClientXMPP):
             print('Error sending file')
             self.disconnect()
 
-
+'''
+Class that allow to send files
+Parameters:
+    - JID
+    - Password
+    - jiduser: jid of the user you want to addd to your roster
+'''
 class AddUser(slixmpp.ClientXMPP):
     def __init__(self, jid,password,jiduser):
         slixmpp.ClientXMPP.__init__(self,jid,password)
@@ -411,6 +437,14 @@ class AddUser(slixmpp.ClientXMPP):
         except:
             print("Couldn't add Friend")
 
+'''
+Class that allow to send files
+Parameters:
+    - JID
+    - Password
+    - jiduser: jid of the user you want to addd to your roster
+'''
+
 class CreateGroup(slixmpp.ClientXMPP):
     def __init__(self, jid, password, room, nick):
         slixmpp.ClientXMPP.__init__(self, jid, password)
@@ -423,7 +457,7 @@ class CreateGroup(slixmpp.ClientXMPP):
         await self.get_roster()
         self.send_presence()
         try:
-            status = "Joining the room..."
+            status = "Joining to: " + str(self.room)
             self.plugin['xep_0045'].join_muc(room,nick, pstatus=status, pfrom=self.boundjid.full)
             #Set the affilation
             await self.plugin['xep_0045'].set_affiliation(room,'owner')
@@ -437,7 +471,16 @@ class CreateGroup(slixmpp.ClientXMPP):
         except IqTimeout:
             raise Exception("No response from server")
 
-    
+def is_num():
+    num=False
+    while num==False:
+        option=input('Choose an option from the menu: ')
+        num=option.isnumeric()
+        if (num==False):
+            print ('You must enter a number ')
+        else:
+            option=int(option)
+    return option   
 
 
 
@@ -448,9 +491,7 @@ if __name__ == '__main__':
     parser.add_argument("-q", "--quiet", help="set logging to ERROR",
                         action="store_const", dest="loglevel",
                         const=logging.ERROR, default=logging.INFO)
-    parser.add_argument("-d", "--debug", help="set logging to DEBUG",
-                        action="store_const", dest="loglevel",
-                        const=logging.DEBUG, default=logging.INFO)
+    parser.add_argument("-d", "--debug", help="set logging to DEBUG", action="store_const", dest="loglevel",const=logging.DEBUG, default=logging.INFO)
 
     # JID and password options.
     parser.add_argument("-j", "--jid", dest="jid",
@@ -466,6 +507,8 @@ if __name__ == '__main__':
     
     connected=True
     while connected:
+        jid=None
+        password=None
         print('Welcome to alumchat.xyz') 
         print('1. Log in')
         print('2. Register a new user')
@@ -479,6 +522,8 @@ if __name__ == '__main__':
                 xmpp=Login(args.jid,args.password)
                 xmpp.connect()
                 xmpp.process(forever=False)
+                jid=args.jid
+                password=args.password
                 connected=False
             except:
                 print('\nAn error has occurred. Verify that the username and password are correct')
@@ -493,7 +538,10 @@ if __name__ == '__main__':
             xmpp.register_plugin('xep_0077') # In-band Registration
             xmpp['xep_0077'].force_registration = True
             xmpp.connect()
-            xmpp.process()
+            xmpp.process(forever=False)
+            connected=True
+        else:
+            print('Invalid option. Try again!')
             connected=True
 
     loop=True
@@ -511,25 +559,25 @@ if __name__ == '__main__':
         print(' 8.Send/receive files')
         print(' 9.Logout')
         print(' 10.Delete account')
-        option=int(input("\n"))
+        option=is_num()
         if(option==1):
-            xmpp = ShowUsersBot(args.jid,args.password)
+            xmpp = ShowUsersBot(jid,password)
             xmpp.connect()
             xmpp.process(forever=False)
         elif(option==2):
             user=input('Enter the username you want to add: ')
-            xmpp=AddUser(args.jid,args.password,user)
+            xmpp=AddUser(jid,password,user)
             xmpp.connect()
             xmpp.process(forever=False)
         elif(option==3):
-            xmpp = UserInfoBot(args.jid, args.password)
+            xmpp = UserInfoBot(jid, password)
             xmpp.connect()
             xmpp.process(forever=False)
         elif(option==4):
             try:
                 user=input('Enter the username ')
                 message=input('msg: ')
-                xmpp = MsgBot(args.jid, args.password, user, message)
+                xmpp = MsgBot(jid, password, user, message)
                 xmpp.register_plugin('xep_0030') # Service Discovery
                 xmpp.register_plugin('xep_0199') # XMPP Ping
                 xmpp.register_plugin('xep_0004') # Data Forms
@@ -538,29 +586,31 @@ if __name__ == '__main__':
             except KeyboardInterrupt:
                 xmpp.disconnect()
         elif(option==5):
-            room=input('Enter the name of the group ')
-            room=room+'@conference.alumchat.xyz'
-            nick=input('Enter your nick ')
-            message=input('msg: ')
-            xmpp = MultiChatBot(args.jid,args.password,room,nick)
-            xmpp.register_plugin('xep_0030') # Service Discovery
-            xmpp.register_plugin('xep_0199') # XMPP Ping
-            xmpp.register_plugin('xep_0004') # Data Forms
-            xmpp.register_plugin('xep_0045') # MUC
-            xmpp.connect()
-            xmpp.process(forever=False)
-            sys.exit()
+            try:
+                room=input('Enter the name of the group ')
+                room=room+'@conference.alumchat.xyz'
+                nick=input('Enter your nick ')
+                message=input('msg: ')
+                xmpp = MultiChatBot(jid,password,room,nick)
+                xmpp.register_plugin('xep_0030') # Service Discovery
+                xmpp.register_plugin('xep_0199') # XMPP Ping
+                xmpp.register_plugin('xep_0004') # Data Forms
+                xmpp.register_plugin('xep_0045') # MUC
+                xmpp.connect()
+                xmpp.process(forever=False)
+            except KeyboardInterrupt:
+                xmpp.disconnect()
         elif(option==6):
             presence=input('Select presence status (chat,away,xa,dnd): ')
             message=input('Select message presence: ')
-            xmpp=ChangePresence(args.jid,args.password,presence,message)
+            xmpp=ChangePresence(jid,password,presence,message)
             xmpp.connect()
             xmpp.process(forever=False)
         elif(option==7):
             room=input('Enter the name of the group ')
             room=room+'@conference.alumchat.xyz'
             nick=input('Enter your nick ')
-            xmpp=CreateGroup(args.jid,args.password,room, nick)
+            xmpp=CreateGroup(jid,password,room, nick)
             xmpp.register_plugin('xep_0030') # Service Discovery
             xmpp.register_plugin('xep_0199') # XMPP Ping
             xmpp.register_plugin('xep_0004') # Data Forms
@@ -570,18 +620,18 @@ if __name__ == '__main__':
         elif(option==8):
             user=input('Enter the username ')
             file=input('Insert file name: ')
-            xmpp=Sendfile(args.jid,args.password,user,file)
+            xmpp=Sendfile(jid,password,user,file)
             xmpp.register_plugin('xep_0030') # Service Discovery
             xmpp.register_plugin('xep_0065') # SOCKS5 Bytestreams
             xmpp.connect()
             xmpp.process(forever=False)
         elif(option==9):
-            xmpp=Logout(args.jid,args.password)
+            xmpp=Logout(jid,password)
             xmpp.connect()
-            xmpp.process(forever=False)
+            xmpp.process()
             loop=False
         elif(option==10):
-            xmpp=DeleteAccountBot(args.jid,args.password)
+            xmpp=DeleteAccountBot(jid,password)
             xmpp.register_plugin('xep_0030') # Service Discovery
             xmpp.register_plugin('xep_0004') # Data forms
             xmpp.register_plugin('xep_0066') # Out-of-band Data
@@ -590,7 +640,8 @@ if __name__ == '__main__':
             xmpp.process(forever=False)
             loop=False
         else:
-            print('Opcion incorrecta')
+            print('Invalid option. Try again!')
+            loop=True
     
     
         
