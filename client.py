@@ -18,8 +18,11 @@ from slixmpp.exceptions import IqError, IqTimeout
 from slixmpp.xmlstream.stanzabase import ET, ElementBase 
 import asyncio
 
-########################################################################################################################################
+###################################################################################################################
 
+#                                                   
+
+###################################################################################################################
 
 #Small fix that allows the program to run on windows operating systems due to an error with the asyncio library
 if sys.platform == 'win32' and sys.version_info >= (3, 8):
@@ -40,6 +43,7 @@ class RegisterBot(slixmpp.ClientXMPP):
     async def start(self, event):
         self.send_presence()
         await self.get_roster()
+        print('Account created for: ',jid)
         self.disconnect()
 
     async def register(self, iq):
@@ -107,7 +111,7 @@ class Logout(slixmpp.ClientXMPP):
         self.send_presence()
         await self.get_roster()
         print('Bye! See you soon :) ')
-        self.disconnect(wait=10)
+        self.disconnect()
 
 '''
 Class that allows a user to log in
@@ -153,7 +157,7 @@ class ChangePresence(slixmpp.ClientXMPP):
     async def start(self,event):
         #Changing presence message 
         self.send_presence(pshow=self.option,pstatus=self.message)
-        await asyncio.sleep(30)
+        await asyncio.sleep(40)
         self.get_roster()
         self.disconnect()
 
@@ -202,6 +206,7 @@ class MsgBot(slixmpp.ClientXMPP):
 
     async def message(self, msg):
         #self.Notification()
+        message=input('You: ')
         if msg['type'] in ('chat'):
             recipient = msg['from']
             body = msg['body']
@@ -333,6 +338,7 @@ class UserInfoBot(slixmpp.ClientXMPP):
             self.presences_received.set()
         else:
             self.presences_received.clear()
+
 
 '''
 Class that allow group chat
@@ -466,6 +472,8 @@ class CreateGroup(slixmpp.ClientXMPP):
 
             print("You have succesfully created the room: " + room + "with NickName: "+nick)
 
+            self.disconnect()
+
         except IqError as e:
             raise Exception("The room could not been created", e)
         except IqTimeout:
@@ -518,6 +526,11 @@ if __name__ == '__main__':
                 args.jid = input("Username: ")
             if args.password is None:
                 args.password = getpass("Password: ")
+
+            jid = args.jid
+            password = args.password 
+            connected=False
+            '''
             try: 
                 xmpp=Login(args.jid,args.password)
                 xmpp.connect()
@@ -528,6 +541,7 @@ if __name__ == '__main__':
             except:
                 print('\nAn error has occurred. Verify that the username and password are correct')
                 connected=True
+            '''  
         elif(opt==2):
             jid = input("Enter a new username (yourname@alumchat.xyz): ")
             password = getpass("Password: ") 
@@ -628,7 +642,7 @@ if __name__ == '__main__':
         elif(option==9):
             xmpp=Logout(jid,password)
             xmpp.connect()
-            xmpp.process()
+            xmpp.process(forever=False)
             loop=False
         elif(option==10):
             xmpp=DeleteAccountBot(jid,password)
