@@ -19,13 +19,13 @@ Implemented Functions:
     - Log out
     - Define Presence
     - Group chat
+    - Register account ~
+    - Create group 
 Pending Functions:
-    - Register account (?) 
     - Notifications (typing)
-    - Create group
 Uncompleted functions:
     - Files
-    - Group chat
+
 '''
 
 import logging
@@ -35,74 +35,42 @@ from getpass import getpass
 from argparse import ArgumentParser
 import slixmpp
 from slixmpp.exceptions import IqError, IqTimeout
+from slixmpp.xmlstream.stanzabase import ET, ElementBase 
 import asyncio
 
 ###################################################################################################################
 
 ###################################################################################################################
 
+#Small fix that allows the program to run on windows operating systems due to an error with the asyncio library
 if sys.platform == 'win32' and sys.version_info >= (3, 8):
      asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
+'''
+Class that registers a user to the server. 
+Parameters:
+    - JID
+    - Password
+'''
 class RegisterBot(slixmpp.ClientXMPP):
     def __init__(self, jid, password):
         slixmpp.ClientXMPP.__init__(self, jid, password)
-
-        # The session_start event will be triggered when
-        # the bot establishes its connection with the server
-        # and the XML streams are ready for use. We want to
-        # listen for this event so that we we can initialize
-        # our roster.
         self.add_event_handler("session_start", self.start)
-
-        # The register event provides an Iq result stanza with
-        # a registration form from the server. This may include
-        # the basic registration fields, a data form, an
-        # out-of-band URL, or any combination. For more advanced
-        # cases, you will need to examine the fields provided
-        # and respond accordingly. Slixmpp provides plugins
-        # for data forms and OOB links that will make that easier.
         self.add_event_handler("register", self.register)
 
     async def start(self, event):
-        """
-        Process the session_start event.
-        Typical actions for the session_start event are
-        requesting the roster and broadcasting an initial
-        presence stanza.
-        Arguments:
-            event -- An empty dictionary. The session_start
-                     event does not provide any additional
-                     data.
-        """
         self.send_presence()
         await self.get_roster()
-
-        # We're only concerned about registering, so nothing more to do here.
         self.disconnect()
 
     async def register(self, iq):
-        """
-        Fill out and submit a registration form.
-        The form may be composed of basic registration fields, a data form,
-        an out-of-band link, or any combination thereof. Data forms and OOB
-        links can be checked for as so:
-        if iq.match('iq/register/form'):
-            # do stuff with data form
-            # iq['register']['form']['fields']
-        if iq.match('iq/register/oob'):
-            # do stuff with OOB URL
-            # iq['register']['oob']['url']
-        To get the list of basic registration fields, you can use:
-            iq['register']['fields']
-        """
-        resp = self.Iq()
-        resp['type'] = 'set'
-        resp['register']['username'] = self.boundjid.user
-        resp['register']['password'] = self.password
+        response = self.Iq()
+        response['type'] = 'set'
+        response['register']['username'] = self.boundjid.user
+        response['register']['password'] = self.password
 
         try:
-            await resp.send()
+            await response.send()
             logging.info("Account created for %s!" % self.boundjid)
         except IqError as e:
             logging.error("Could not register account: %s" %
@@ -112,6 +80,12 @@ class RegisterBot(slixmpp.ClientXMPP):
             logging.error("No response from server.")
             self.disconnect()
 
+'''
+Class that unregisters a user from the server. 
+Parameters:
+    - JID
+    - Password
+'''
 
 class DeleteAccountBot(slixmpp.ClientXMPP):
     def __init__(self, jid,password):
@@ -122,15 +96,15 @@ class DeleteAccountBot(slixmpp.ClientXMPP):
     async def start(self,event):
         self.send_presence()
         await self.get_roster()
-
-        resp = self.Iq()
-        resp['type'] = 'get'
-        resp['from'] = self.boundjid.user
-        resp['password'] = self.password
-        resp['register']['remove'] = 'remove'
+        #preparing the query to unregister the indicated jid
+        response = self.Iq()
+        response['type'] = 'get'
+        response['from'] = self.boundjid.user
+        response['password'] = self.password
+        response['register']['remove'] = 'remove'
 
         try:
-            resp.send()
+            response.send()
             print("Success! Acount Deleted"+str(self.boundjid))
         except IqError as e:
             print("IQ Error:Account Not Deleted")
@@ -138,6 +112,13 @@ class DeleteAccountBot(slixmpp.ClientXMPP):
         except IqTimeout:
             print("Timeout")
             self.disconnect() 
+
+'''
+Class that allows a user to log out
+Parameters:
+    - JID
+    - Password
+'''
 
 class Logout(slixmpp.ClientXMPP):
     def __init__(self, jid,password):
@@ -148,6 +129,13 @@ class Logout(slixmpp.ClientXMPP):
         self.send_presence()
         await self.get_roster()
         self.disconnect()
+
+'''
+Class that allows a user to log in
+Parameters:
+    - JID
+    - Password
+'''
 
 class Login(slixmpp.ClientXMPP):
     def __init__(self, jid,password):
@@ -160,6 +148,15 @@ class Login(slixmpp.ClientXMPP):
         print('Hello! You are in')
         self.disconnect()
 
+'''
+Class that allows a user to change their presence message
+Parameters:
+    - JID
+    - Password
+    - Option: Status (away,chat,dnd,xa)
+    - Message: Presence message
+'''
+
 class ChangePresence(slixmpp.ClientXMPP):
     def __init__(self, jid,password,option,message):
         slixmpp.ClientXMPP.__init__(self,jid,password)
@@ -168,10 +165,12 @@ class ChangePresence(slixmpp.ClientXMPP):
         self.add_event_handler("session_start", self.start)
 
     async def start(self,event):
+        #Changing presence message 
         self.send_presence(pshow=self.option,pstatus=self.message)
         await asyncio.sleep(10)
         self.get_roster()
         self.disconnect()
+
 
 
 class MsgBot(slixmpp.ClientXMPP):
@@ -181,6 +180,7 @@ class MsgBot(slixmpp.ClientXMPP):
         self.msg = message
         self.add_event_handler("session_start", self.start)
         self.add_event_handler("message", self.message)
+        #self.add_event_handler("message", self.Notification)
 
     async def start(self, event):
         self.send_presence()
@@ -190,7 +190,24 @@ class MsgBot(slixmpp.ClientXMPP):
                           mtype='chat')
         
 
+    def Notification(self):
+        itemStanza = ET.fromstring("<composing xmlns='http://jabber.org/protocol/chatstates'/>")
+        body='Someone is writting you...'
+        # Send a notification
+        message=self.Message()
+        message.append(itemStanza)
+        message['to'] = self.recipient
+        message['type'] = 'chat'
+        message['body'] = body
+        try:
+            message.send()
+        except IqError as e:
+            raise Exception("Notification not sended", e)
+        except IqTimeout:
+            raise Exception("Server not responding")
+
     async def message(self, msg):
+        #self.Notification()
         if msg['type'] in ('chat'):
             recipient = msg['from']
             body = msg['body']
@@ -348,11 +365,14 @@ class Sendfile(slixmpp.ClientXMPP):
     async def start(self, event):
         with open (self.file,'rb') as img:
             file_=base64.b64encode(img.read()).decode('utf-8')
+            self.disconnect()
         try:
             self.send_message(mto=self.receiver, mbody=file_, mtype='chat')
             print('Sent file ')
+            self.disconnect()
         except:
             print('Error sending file')
+            self.disconnect()
 
 
 class AddUser(slixmpp.ClientXMPP):
@@ -391,6 +411,36 @@ class AddUser(slixmpp.ClientXMPP):
         except:
             print("Couldn't add Friend")
 
+class CreateGroup(slixmpp.ClientXMPP):
+    def __init__(self, jid, password, room, nick):
+        slixmpp.ClientXMPP.__init__(self, jid, password)
+
+        self.room = room
+        self.nick = nick
+        self.add_event_handler("session_start", self.start)
+    
+    async def start(self, event):
+        await self.get_roster()
+        self.send_presence()
+        try:
+            status = "Joining the room..."
+            self.plugin['xep_0045'].join_muc(room,nick, pstatus=status, pfrom=self.boundjid.full)
+            #Set the affilation
+            await self.plugin['xep_0045'].set_affiliation(room,'owner')
+            #Publicate chat room
+            self.plugin['xep_0045'].set_room_config(room,None,ifrom=self.boundjid.full)
+
+            print("You have succesfully created the room: " + room + "with NickName: "+nick)
+
+        except IqError as e:
+            raise Exception("The room could not been created", e)
+        except IqTimeout:
+            raise Exception("No response from server")
+
+    
+
+
+
 
 
 if __name__ == '__main__':
@@ -425,10 +475,14 @@ if __name__ == '__main__':
                 args.jid = input("Username: ")
             if args.password is None:
                 args.password = getpass("Password: ")
-            xmpp=Login(args.jid,args.password)
-            xmpp.connect()
-            xmpp.process(forever=False)
-            connected=False
+            try: 
+                xmpp=Login(args.jid,args.password)
+                xmpp.connect()
+                xmpp.process(forever=False)
+                connected=False
+            except:
+                print('\nAn error has occurred. Verify that the username and password are correct')
+                connected=True
         elif(opt==2):
             jid = input("Enter a new username (yourname@alumchat.xyz): ")
             password = getpass("Password: ") 
@@ -453,7 +507,7 @@ if __name__ == '__main__':
         print(' 4.DM')
         print(' 5.Group Chat')
         print(' 6.Define status')
-        print(' 7.Send/recieve notifications')
+        print(' 7.Create group')
         print(' 8.Send/receive files')
         print(' 9.Logout')
         print(' 10.Delete account')
@@ -503,7 +557,16 @@ if __name__ == '__main__':
             xmpp.connect()
             xmpp.process(forever=False)
         elif(option==7):
-            pass
+            room=input('Enter the name of the group ')
+            room=room+'@conference.alumchat.xyz'
+            nick=input('Enter your nick ')
+            xmpp=CreateGroup(args.jid,args.password,room, nick)
+            xmpp.register_plugin('xep_0030') # Service Discovery
+            xmpp.register_plugin('xep_0199') # XMPP Ping
+            xmpp.register_plugin('xep_0004') # Data Forms
+            xmpp.register_plugin('xep_0045') # MUC
+            xmpp.connect()
+            xmpp.process(forever=False)
         elif(option==8):
             user=input('Enter the username ')
             file=input('Insert file name: ')
