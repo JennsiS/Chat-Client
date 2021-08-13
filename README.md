@@ -1,15 +1,39 @@
-# Chat client with xmpp protocol
+<br />
+<p align="center">
+  <a href="https://github.com/othneildrew/Best-README-Template">
+    <img src="images/logo.png" alt="Logo" width="80" height="80">
+  </a>
+  <h3 align="center">Chat client with xmpp protocol</h3>
+</p>
 
+### Author
 
-#####                                                  author: Jennifer Sandoval
+Jennifer Daniela Sandoval Rivas
 
-<hr> </hr>
+<!-- TABLE OF CONTENTS -->
+<details open="open">
+  <summary>Table of Contents</summary>
+  <ol>
+    <li>
+      <a href="#Description">About The Project</a>
+    </li>
+    <li>
+      <a href="#Libraries-and-modules-required">Libraries and modules required</a>
+    </li>
+    <li><a href="#How-to-use">Usage</a></li>
+    <li><a href="#Structure">Roadmap</a></li>
+    <li><a href="#References">Refereces</a></li>
+    <li><a href="#License">License</a></li>
+    <li><a href="#Contact">Contact</a></li>
+  </ol>
+</details>
+
 
 ### Description
 
 This project generates a client that allows communication with an XMPP server with the domain @alumchat.xyz, it is programmed in python language and the [slixmpp](https://slixmpp.readthedocs.io/en/latest/) library is used to implement the main functionalities of the XMPP protocol.
 
-### Libraries and modules
+### Libraries and modules required
 
 - Logging
 - sys
@@ -24,13 +48,11 @@ This project generates a client that allows communication with an XMPP server wi
 1. Run from command line as follows:
                             `python client.py`
 2. A menu like the following will be shown:
-                        ``` python
                             Welcome to alumchat.xyz
                             1. Log in`
                             2. Register a new user
-                        ```
     - When the login function is chosen, the following menu is displayed:
-        `MENU
+        MENU
         Select the option you want to use:
         1.Show all users
         2.Add contact
@@ -41,6 +63,12 @@ This project generates a client that allows communication with an XMPP server wi
         7.Create group
         8.Send/receive files
         9.Logout
-        10.Delete account`
-                    
+        10.Delete account
 
+### Structure
+
+### References
+                    
+### License
+
+### Contact
