@@ -47,14 +47,16 @@ This project generates a client that allows communication with an XMPP server wi
 
 ### How to use
 
-Run from command line as follows: 
+Run from command line as follows:  
                             ```python
                             python client.py  
-                            ```
+                            ```  
 The following parameters can be added (optional) when executing the program:  
-                            `python client.py -d[debug] -q[quiet] -j[JID] -p[password]`  
+                            ```python
+                            python client.py -d[debug] -q[quiet] -j[JID] -p[password]
+                            ```
 
-                            - **debug:** argument that allows debugging to be shown when running the program  
+                            - debug: argument that allows debugging to be shown when running the program  
                             - quiet: argument that allows you to silence any message outside the program  
                             - JID: Jid to login or register. It must be entered in the following way username@domain (in this case username@alumchat.xyz)  
                             - password: The password corresponding to the JID entered to log in or create an account
