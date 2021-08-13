@@ -1,6 +1,6 @@
 <br />
 <p align="center">
-  <h2 align="center">Chat client with xmpp protocol</h2>
+  <h2 align="center">Chat client with XMPP protocol</h2>
 </p>
 
 ### Author
@@ -33,7 +33,7 @@ This project generates a client that allows communication with an XMPP server wi
 
 - Python 3.7 +
 - Slixmpp
-- Connecting to a XAMPP server to use the client
+- Connecting to a XMPP server to use the client
 
 ### Libraries and modules required
 
@@ -47,11 +47,14 @@ This project generates a client that allows communication with an XMPP server wi
 
 ### How to use
 
-Run from command line as follows:  
-                            `python client.py`
+Run from command line as follows: 
+                            ```python
+                            python client.py  
+                            ```
 The following parameters can be added (optional) when executing the program:  
                             `python client.py -d[debug] -q[quiet] -j[JID] -p[password]`  
-                            - debug: argument that allows debugging to be shown when running the program  
+
+                            - **debug:** argument that allows debugging to be shown when running the program  
                             - quiet: argument that allows you to silence any message outside the program  
                             - JID: Jid to login or register. It must be entered in the following way username@domain (in this case username@alumchat.xyz)  
                             - password: The password corresponding to the JID entered to log in or create an account
@@ -61,14 +64,24 @@ The following parameters can be added (optional) when executing the program:
 This program is composed of different classes and each of these classes performs a client functionality.  
 Below are the classes and a brief description of them:  
 
-    - `RegisterBot` : Class that registers a user to the server.
-    - `DeleteAccountBot` : Class that unregisters a user from the server.  
-    - `Logout` : Class that allows a user to log out  
-    - `Login` : Class that allows a user to log in  
-    - `ChangePresence` : Class that allows a user to change their presence message  
-    - `ShowUsersBot` : Class that shows all users in my roster, their status and presence message  
+
+    - RegisterBot : Class that registers a user to the server.
+    - DeleteAccountBot : Class that unregisters a user from the server.  
+    - Logout : Class that allows a user to log out  
+    - Login : Class that allows a user to log in  
+    - ChangePresence : Class that allows a user to change their presence message  
+    - ShowUsersBot : Class that shows all users in my roster, their status and presence message  
+    - UserInfoBot: Class that shows the information of a specific user in my roster  
+    - MultiChatBot: Class that allow group chat  
+    - Sendfile: Class that allow to send files  
+    - AddUser: Class that allow to add a new contact to your roster  
+    - CreateGroup: Class that allow to create a group for chat  
 
 
 ### References
+
+1. Slixmpp documentation. https://slixmpp.readthedocs.io/en/latest/
+2. Fritz, N. https://github.com/poezio/slixmpp/tree/master/examples
+3. XMPP. https://xmpp.org/extensions/
 
                      
