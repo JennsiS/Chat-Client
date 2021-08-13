@@ -1,6 +1,6 @@
 <br />
 <p align="center">
-  <h3 align="center">Chat client with xmpp protocol</h3>
+  <h2 align="center">Chat client with xmpp protocol</h2>
 </p>
 
 ### Author
@@ -14,13 +14,13 @@ Jennifer Daniela Sandoval Rivas
     <li>
       <a href="#Description">About The Project</a>
     </li>
+    <li><a href="#Requirements">Requirements</a></li>
     <li>
       <a href="#Libraries-and-modules-required">Libraries and modules required</a>
     </li>
     <li><a href="#How-to-use">Usage</a></li>
     <li><a href="#Structure">Structure</a></li>
     <li><a href="#References">Refereces</a></li>
-    <li><a href="#Contact">Contact</a></li>
   </ol>
 </details>
 
@@ -28,6 +28,12 @@ Jennifer Daniela Sandoval Rivas
 ### Description
 
 This project generates a client that allows communication with an XMPP server with the domain @alumchat.xyz, it is programmed in python language and the [slixmpp](https://slixmpp.readthedocs.io/en/latest/) library is used to implement the main functionalities of the XMPP protocol.
+
+### Requirements
+
+- Python 3.7 +
+- Slixmpp
+- Connecting to a XAMPP server to use the client
 
 ### Libraries and modules required
 
@@ -41,32 +47,28 @@ This project generates a client that allows communication with an XMPP server wi
 
 ### How to use
 
-1. Run from command line as follows:
+Run from command line as follows:  
                             `python client.py`
-2. A menu like the following will be shown:  
-                            Welcome to alumchat.xyz  
-                            1. Log in  
-                            2. Register a new user  
-
-    - When the login function is chosen, the following menu is displayed:  
-        **MENU**    
-        Select the option you want to use:  
-        1.Show all users  
-        2.Add contact  
-        3.Show user  
-        4.DM  
-        5.Group Chat  
-        6.Define status  
-        7.Create group  
-        8.Send/receive files  
-        9.Logout  
-        10.Delete account  
-
+The following parameters can be added (optional) when executing the program:  
+                            `python client.py -d[debug] -q[quiet] -j[JID] -p[password]`  
+                            - debug: argument that allows debugging to be shown when running the program  
+                            - quiet: argument that allows you to silence any message outside the program  
+                            - JID: Jid to login or register. It must be entered in the following way username@domain (in this case username@alumchat.xyz)  
+                            - password: The password corresponding to the JID entered to log in or create an account
+ 
 ### Structure
+
+This program is composed of different classes and each of these classes performs a client functionality.  
+Below are the classes and a brief description of them:  
+
+    - `RegisterBot` : Class that registers a user to the server.
+    - `DeleteAccountBot` : Class that unregisters a user from the server.  
+    - `Logout` : Class that allows a user to log out  
+    - `Login` : Class that allows a user to log in  
+    - `ChangePresence` : Class that allows a user to change their presence message  
+    - `ShowUsersBot` : Class that shows all users in my roster, their status and presence message  
+
 
 ### References
 
-                    
-### Contact
-
-    **email:** jenni.sandoval.28@gmail.com 
+                     

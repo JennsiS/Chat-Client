@@ -597,7 +597,7 @@ if __name__ == '__main__':
             xmpp.connect()
             xmpp.process(forever=False)
         elif(option==2):
-            user=input('Enter the username you want to add: ')
+            user=input('Enter the username you want to add (example@alumchat.xyz): ')
             xmpp=AddUser(jid,password,user)
             xmpp.connect()
             xmpp.process(forever=False)
@@ -607,7 +607,7 @@ if __name__ == '__main__':
             xmpp.process(forever=False)
         elif(option==4):
             try:
-                user=input('Enter the username ')
+                user=input('Enter the username (user@alumchat.xyz): ')
                 message=input('msg: ')
                 xmpp = MsgBot(jid, password, user, message)
                 xmpp.register_plugin('xep_0030') # Service Discovery
@@ -619,9 +619,9 @@ if __name__ == '__main__':
                 xmpp.disconnect()
         elif(option==5):
             try:
-                room=input('Enter the name of the group ')
+                room=input('Enter the name of the group: (just the name without the domain) ')
                 room=room+'@conference.alumchat.xyz'
-                nick=input('Enter your nick ')
+                nick=input('Enter your nick in this room: ')
                 message=input('msg: ')
                 xmpp = MultiChatBot(jid,password,room,nick)
                 xmpp.register_plugin('xep_0030') # Service Discovery
@@ -639,9 +639,9 @@ if __name__ == '__main__':
             xmpp.connect()
             xmpp.process(forever=False)
         elif(option==7):
-            room=input('Enter the name of the group ')
+            room=input('Enter the name of the group (just the name without the domain): ')
             room=room+'@conference.alumchat.xyz'
-            nick=input('Enter your nick ')
+            nick=input('Enter your nick in this room: ')
             xmpp=CreateGroup(jid,password,room, nick)
             xmpp.register_plugin('xep_0030') # Service Discovery
             xmpp.register_plugin('xep_0199') # XMPP Ping
@@ -651,7 +651,7 @@ if __name__ == '__main__':
             xmpp.process(forever=False)
         elif(option==8):
             user=input('Enter the username ')
-            file=input('Insert file name: ')
+            file=input('Insert file path: ')
             xmpp=Sendfile(jid,password,user,file)
             xmpp.register_plugin('xep_0030') # Service Discovery
             xmpp.register_plugin('xep_0065') # SOCKS5 Bytestreams
