@@ -1,8 +1,5 @@
 <br />
 <p align="center">
-  <a href="https://github.com/othneildrew/Best-README-Template">
-    <img src="images/logo.png" alt="Logo" width="80" height="80">
-  </a>
   <h3 align="center">Chat client with xmpp protocol</h3>
 </p>
 
@@ -21,7 +18,7 @@ Jennifer Daniela Sandoval Rivas
       <a href="#Libraries-and-modules-required">Libraries and modules required</a>
     </li>
     <li><a href="#How-to-use">Usage</a></li>
-    <li><a href="#Structure">Roadmap</a></li>
+    <li><a href="#Structure">Structure</a></li>
     <li><a href="#References">Refereces</a></li>
     <li><a href="#License">License</a></li>
     <li><a href="#Contact">Contact</a></li>
@@ -47,23 +44,23 @@ This project generates a client that allows communication with an XMPP server wi
 
 1. Run from command line as follows:
                             `python client.py`
-2. A menu like the following will be shown:
-                            Welcome to alumchat.xyz
-                            1. Log in`
-                            2. Register a new user
-    - When the login function is chosen, the following menu is displayed:
-        MENU
-        Select the option you want to use:
-        1.Show all users
-        2.Add contact
-        3.Show user
-        4.DM
-        5.Group Chat
-        6.Define status
-        7.Create group
-        8.Send/receive files
-        9.Logout
-        10.Delete account
+2. A menu like the following will be shown:  
+                            Welcome to alumchat.xyz  
+                            1. Log in  
+                            2. Register a new user  
+    - When the login function is chosen, the following menu is displayed:  
+        MENU  
+        Select the option you want to use:  
+        1.Show all users  
+        2.Add contact  
+        3.Show user  
+        4.DM  
+        5.Group Chat  
+        6.Define status  
+        7.Create group  
+        8.Send/receive files  
+        9.Logout  
+        10.Delete account  
 
 ### Structure
 
