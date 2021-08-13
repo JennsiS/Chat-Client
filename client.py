@@ -407,7 +407,7 @@ class Sendfile(slixmpp.ClientXMPP):
         self.add_event_handler("session_start", self.start)
 
     async def start(self, event):
-        #
+        #Open the file with the path indicated and encoding to utf-8
         with open (self.file,'rb') as img:
             file_=base64.b64encode(img.read()).decode('utf-8')
             self.disconnect()
@@ -420,7 +420,7 @@ class Sendfile(slixmpp.ClientXMPP):
             self.disconnect()
 
 '''
-Class that allow to send files
+Class that allow to add a new user to your contacts
 Parameters:
     - JID
     - Password
@@ -438,6 +438,7 @@ class AddUser(slixmpp.ClientXMPP):
     async def start(self,event): 
         try:
             await self.get_roster()
+            #Sending the subscription to the jid user you want to add
             self.send_presence_subscription(pto=self.jiduser)
             print("User added! " + str(self.jiduser))
             self.disconnect()
@@ -448,7 +449,7 @@ class AddUser(slixmpp.ClientXMPP):
             print("Timeout")
             self.disconnect()
 
-
+    #Receiving presences from the roster
     def wait_for_presences(self,pres):
         self.received.add(pres['from'].bare)
         if len(self.recieved)>=len(self.client_roster.keys()):
@@ -458,12 +459,13 @@ class AddUser(slixmpp.ClientXMPP):
     
     def send_request(self,to):
         try:
+            #Sending the request to the server to add the jid user to your contacts
             self.send_presence_subscription(to, self.local_jid, 'subscribe')
         except:
             print("Couldn't add Friend")
 
 '''
-Class that allow to send files
+Class that allow to create groups to chat
 Parameters:
     - JID
     - Password
@@ -488,9 +490,7 @@ class CreateGroup(slixmpp.ClientXMPP):
             await self.plugin['xep_0045'].set_affiliation(room,'owner')
             #Publicate chat room
             self.plugin['xep_0045'].set_room_config(room,None,ifrom=self.boundjid.full)
-
             print("You have succesfully created the room: " + room + "with NickName: "+nick)
-
             self.disconnect()
 
         except IqError as e:
@@ -498,6 +498,7 @@ class CreateGroup(slixmpp.ClientXMPP):
         except IqTimeout:
             raise Exception("No response from server")
 
+#Simple function to check if the option is numeric
 def is_num():
     num=False
     while num==False:
@@ -593,19 +594,23 @@ if __name__ == '__main__':
         print(' 10.Delete account')
         option=is_num()
         if(option==1):
+            #Showing all users
             xmpp = ShowUsersBot(jid,password)
             xmpp.connect()
             xmpp.process(forever=False)
         elif(option==2):
+            #Add a new contact
             user=input('Enter the username you want to add (example@alumchat.xyz): ')
             xmpp=AddUser(jid,password,user)
             xmpp.connect()
             xmpp.process(forever=False)
         elif(option==3):
+            #Showing one user info
             xmpp = UserInfoBot(jid, password)
             xmpp.connect()
             xmpp.process(forever=False)
         elif(option==4):
+            #Chat with some user
             try:
                 user=input('Enter the username (user@alumchat.xyz): ')
                 message=input('msg: ')
@@ -618,6 +623,7 @@ if __name__ == '__main__':
             except KeyboardInterrupt:
                 xmpp.disconnect()
         elif(option==5):
+            #Chat in group
             try:
                 room=input('Enter the name of the group: (just the name without the domain) ')
                 room=room+'@conference.alumchat.xyz'
@@ -633,12 +639,14 @@ if __name__ == '__main__':
             except KeyboardInterrupt:
                 xmpp.disconnect()
         elif(option==6):
+            #Change presence message
             presence=input('Select presence status (chat,away,xa,dnd): ')
             message=input('Select message presence: ')
             xmpp=ChangePresence(jid,password,presence,message)
             xmpp.connect()
             xmpp.process(forever=False)
         elif(option==7):
+            #Create a new group to chat
             room=input('Enter the name of the group (just the name without the domain): ')
             room=room+'@conference.alumchat.xyz'
             nick=input('Enter your nick in this room: ')
@@ -650,6 +658,7 @@ if __name__ == '__main__':
             xmpp.connect()
             xmpp.process(forever=False)
         elif(option==8):
+            #Sending files
             user=input('Enter the username ')
             file=input('Insert file path: ')
             xmpp=Sendfile(jid,password,user,file)
@@ -658,11 +667,13 @@ if __name__ == '__main__':
             xmpp.connect()
             xmpp.process(forever=False)
         elif(option==9):
+            #Log out
             xmpp=Logout(jid,password)
             xmpp.connect()
             xmpp.process(forever=False)
             loop=False
         elif(option==10):
+            #Delete the present account
             xmpp=DeleteAccountBot(jid,password)
             xmpp.register_plugin('xep_0030') # Service Discovery
             xmpp.register_plugin('xep_0004') # Data forms
