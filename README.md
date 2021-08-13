@@ -3,6 +3,8 @@
 
 #####                                                  author: Jennifer Sandoval
 
+<hr> </hr>
+
 ### Description
 
 This project generates a client that allows communication with an XMPP server with the domain @alumchat.xyz, it is programmed in python language and the [slixmpp](https://slixmpp.readthedocs.io/en/latest/) library is used to implement the main functionalities of the XMPP protocol.
@@ -22,9 +24,11 @@ This project generates a client that allows communication with an XMPP server wi
 1. Run from command line as follows:
                             `python client.py`
 2. A menu like the following will be shown:
-                        `Welcome to alumchat.xyz`
-                        `1. Log in`
-                        `2. Register a new user`
+                        ``` python
+                            Welcome to alumchat.xyz
+                            1. Log in`
+                            2. Register a new user
+                        ```
     - When the login function is chosen, the following menu is displayed:
         `MENU
         Select the option you want to use:
