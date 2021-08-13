@@ -20,7 +20,6 @@ Jennifer Daniela Sandoval Rivas
     <li><a href="#How-to-use">Usage</a></li>
     <li><a href="#Structure">Structure</a></li>
     <li><a href="#References">Refereces</a></li>
-    <li><a href="#License">License</a></li>
     <li><a href="#Contact">Contact</a></li>
   </ol>
 </details>
@@ -48,8 +47,9 @@ This project generates a client that allows communication with an XMPP server wi
                             Welcome to alumchat.xyz  
                             1. Log in  
                             2. Register a new user  
+
     - When the login function is chosen, the following menu is displayed:  
-        MENU  
+        **MENU**    
         Select the option you want to use:  
         1.Show all users  
         2.Add contact  
@@ -65,7 +65,8 @@ This project generates a client that allows communication with an XMPP server wi
 ### Structure
 
 ### References
-                    
-### License
 
+                    
 ### Contact
+
+    **email:** jenni.sandoval.28@gmail.com 

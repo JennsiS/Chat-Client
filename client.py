@@ -8,6 +8,7 @@
 # Note: Most of the implemented classes are based on the examples provided by the repository belonging to the slixmpp library.
 # References: https://github.com/poezio/slixmpp/tree/master/examples
 
+#Importing libraries
 import logging
 import sys
 import base64
@@ -20,7 +21,7 @@ import asyncio
 
 ###################################################################################################################
 
-#                                                   
+#                               Chat client whit xmpp protocol                                              
 
 ###################################################################################################################
 
@@ -41,17 +42,19 @@ class RegisterBot(slixmpp.ClientXMPP):
         self.add_event_handler("register", self.register)
 
     async def start(self, event):
+        #Connecting to the server
         self.send_presence()
         await self.get_roster()
-        print('Account created for: ',jid)
         self.disconnect()
 
     async def register(self, iq):
+        #Configuring the necessary parameters to perform the query with xmpp to register an account
         response = self.Iq()
         response['type'] = 'set'
         response['register']['username'] = self.boundjid.user
         response['register']['password'] = self.password
 
+        #Trying to send the query to the server
         try:
             await response.send()
             logging.info("Account created for %s!" % self.boundjid)
@@ -79,18 +82,19 @@ class DeleteAccountBot(slixmpp.ClientXMPP):
     async def start(self,event):
         self.send_presence()
         await self.get_roster()
-        #preparing the query to unregister the indicated jid
+        #Preparing the query to unregister the indicated jid
         response = self.Iq()
         response['type'] = 'get'
         response['from'] = self.boundjid.user
         response['password'] = self.password
         response['register']['remove'] = 'remove'
 
+        #Trying to send the query to the server
         try:
             response.send()
-            print("Success! Acount Deleted"+str(self.boundjid))
+            print("\nSuccess! Acount Deleted for: "+str(self.boundjid))
         except IqError as e:
-            print("IQ Error:Account Not Deleted")
+            print("IQ Error: Account Not Deleted")
             self.disconnect()
         except IqTimeout:
             print("Timeout")
@@ -110,7 +114,8 @@ class Logout(slixmpp.ClientXMPP):
     async def start(self,event):
         self.send_presence()
         await self.get_roster()
-        print('Bye! See you soon :) ')
+        print('\nBye! See you soon :) \n')
+        #Log out session
         self.disconnect()
 
 '''
@@ -128,7 +133,7 @@ class Login(slixmpp.ClientXMPP):
         try:
             self.send_presence()
             await self.get_roster()
-            print('Hello! You are in :)')
+            print('\nHello! You are in :)\n')
             self.disconnect()
         except IqError as err:
             print('Error: %s' % err.iq['error']['condition'])
@@ -155,7 +160,7 @@ class ChangePresence(slixmpp.ClientXMPP):
         self.add_event_handler("session_start", self.start)
 
     async def start(self,event):
-        #Changing presence message 
+        #Changing presence message setting the status and the presence message entered by the user
         self.send_presence(pshow=self.option,pstatus=self.message)
         await asyncio.sleep(40)
         self.get_roster()
@@ -176,6 +181,7 @@ class MsgBot(slixmpp.ClientXMPP):
         slixmpp.ClientXMPP.__init__(self, jid, password)
         self.recipient = recipient
         self.msg = message
+        #Handlers
         self.add_event_handler("session_start", self.start)
         self.add_event_handler("message", self.message)
         #self.add_event_handler("message", self.Notification)
@@ -187,7 +193,7 @@ class MsgBot(slixmpp.ClientXMPP):
                           mbody=self.msg,
                           mtype='chat')
         
-
+    #Send notification inside the chat when someone is typing
     def Notification(self):
         itemStanza = ET.fromstring("<composing xmlns='http://jabber.org/protocol/chatstates'/>")
         body='Someone is writting you...'
@@ -204,6 +210,7 @@ class MsgBot(slixmpp.ClientXMPP):
         except IqTimeout:
             raise Exception("Server not responding")
 
+    #asynchronous function that is listening messages from the recipient and allow to send message 
     async def message(self, msg):
         #self.Notification()
         message=input('You: ')
@@ -226,7 +233,6 @@ class ShowUsersBot(slixmpp.ClientXMPP):
         slixmpp.ClientXMPP.__init__(self, jid, password)
         self.add_event_handler("session_start", self.start)
         self.add_event_handler("changed_status", self.wait_for_presences)
-
         self.received = set()
         self.presences_received = asyncio.Event()
 
@@ -239,23 +245,28 @@ class ShowUsersBot(slixmpp.ClientXMPP):
             print('Error: Request timed out')
         self.send_presence()
 
-
+        #giving the server time to send the roster
         print('Waiting for presence updates...\n')
         await asyncio.sleep(10)
 
         print('Roster for %s' % self.boundjid.bare)
+        #getting the existing groups in the roster
         groups = self.client_roster.groups()
         for group in groups:
             print('\n%s' % group)
             print('-' * 72)
             for jid in groups[group]:
+                #Extracting the subscription status of one user
                 sub = self.client_roster[jid]['subscription']
+                #Extracting the name of one user
                 name = self.client_roster[jid]['name']
+                #Not all users have name, in this case only extract the jid
                 if self.client_roster[jid]['name']:
                     print(' %s (%s) [%s]' % (name, jid, sub))
                 else:
                     print(' %s [%s]' % (jid, sub))
 
+                #Extracting the presence status of the user
                 connections = self.client_roster.presence(jid)
                 for res, pres in connections.items():
                     show = 'available'
@@ -267,6 +278,7 @@ class ShowUsersBot(slixmpp.ClientXMPP):
 
         self.disconnect()
 
+    #Receiving the users presences from the server
     def wait_for_presences(self, pres):
         self.received.add(pres['from'].bare)
         if len(self.received) >= len(self.client_roster.keys()):
@@ -285,7 +297,6 @@ class UserInfoBot(slixmpp.ClientXMPP):
         slixmpp.ClientXMPP.__init__(self, jid, password)
         self.add_event_handler("session_start", self.start)
         self.add_event_handler("changed_status", self.wait_for_presences)
-
         self.received = set()
         self.presences_received = asyncio.Event()
 
@@ -298,17 +309,22 @@ class UserInfoBot(slixmpp.ClientXMPP):
             print('Error: Request timed out')
         self.send_presence()
 
+        #Asking the user to enter the jid of the user he wants to display
         jid_user=input('User jid: ')
+        #giving the server time to send the roster
         print('Waiting for presence updates...\n')
         await asyncio.sleep(10)
 
+        #getting the existing groups in the roster
         groups = self.client_roster.groups()
         for group in groups:
             print('\n%s' % group)
             print('-' * 72)
             for jid in groups[group]:
+                #Extracting the subscription status of one user
                 sub = self.client_roster[jid]['subscription']
                 name = self.client_roster[jid]['name']
+                #Showing only the information of the required user when they have name
                 if self.client_roster[jid]['name'] and jid==jid_user:
                     print(' %s (%s) [%s]' % (name, jid, sub))
                     connections = self.client_roster.presence(jid_user)
@@ -319,6 +335,7 @@ class UserInfoBot(slixmpp.ClientXMPP):
                         print('   - %s (%s)' % (res, show))
                         if pres['status']:
                             print('       %s' % pres['status'])
+                #Showing only the information of the required user when they don't have name
                 elif self.client_roster[jid]['name']==False and jid==jid_user:
                     print(' %s [%s]' % (jid, sub))
                     connections = self.client_roster.presence(jid_user)
@@ -329,7 +346,6 @@ class UserInfoBot(slixmpp.ClientXMPP):
                         print('   - %s (%s)' % (res, show))
                         if pres['status']:
                             print('       %s' % pres['status'])
-
         self.disconnect()
 
     def wait_for_presences(self, pres):
@@ -359,8 +375,10 @@ class MultiChatBot(slixmpp.ClientXMPP):
     async def start(self, event):
         await self.get_roster()
         self.send_presence()
+        #loading the necessary plugin for group communication
         self.plugin['xep_0045'].join_muc(self.room, self.nick,)
 
+    #Asynchronous function that is listening to the messages sent in the group
     async def muc_message(self, msg):
         message=input('You: ')
         self.send_message(mto=self.room,
@@ -389,6 +407,7 @@ class Sendfile(slixmpp.ClientXMPP):
         self.add_event_handler("session_start", self.start)
 
     async def start(self, event):
+        #
         with open (self.file,'rb') as img:
             file_=base64.b64encode(img.read()).decode('utf-8')
             self.disconnect()
@@ -491,14 +510,15 @@ def is_num():
     return option   
 
 
-
-
-
+'''MAIN FUNCTION'''
 if __name__ == '__main__':
+    #Add arguments to use when running the program
     parser = ArgumentParser(description=MsgBot.__doc__)
+    #Stop verbose
     parser.add_argument("-q", "--quiet", help="set logging to ERROR",
                         action="store_const", dest="loglevel",
                         const=logging.ERROR, default=logging.INFO)
+    #Show debug
     parser.add_argument("-d", "--debug", help="set logging to DEBUG", action="store_const", dest="loglevel",const=logging.DEBUG, default=logging.INFO)
 
     # JID and password options.
@@ -506,7 +526,6 @@ if __name__ == '__main__':
                         help="JID to use")
     parser.add_argument("-p", "--password", dest="password",
                         help="password to use")
-
     args = parser.parse_args()
 
     # Setup logging.
@@ -526,11 +545,10 @@ if __name__ == '__main__':
                 args.jid = input("Username: ")
             if args.password is None:
                 args.password = getpass("Password: ")
-
             jid = args.jid
             password = args.password 
             connected=False
-            '''
+            #Login function
             try: 
                 xmpp=Login(args.jid,args.password)
                 xmpp.connect()
@@ -540,9 +558,9 @@ if __name__ == '__main__':
                 connected=False
             except:
                 print('\nAn error has occurred. Verify that the username and password are correct')
-                connected=True
-            '''  
+                connected=True  
         elif(opt==2):
+            #Using RegisterBot Class
             jid = input("Enter a new username (yourname@alumchat.xyz): ")
             password = getpass("Password: ") 
             xmpp = RegisterBot(jid, password)
